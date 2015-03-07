@@ -8,10 +8,10 @@
 	$type = "user";
 
 	if (checkEmail($email) == false) {
-		return json_encode(array("success" => False, "message" => "Invalid Email Address."))
+		return json_encode(array("success" => False, "message" => "Invalid Email Address."));
 	}
 
-	$parameters = array(":username" => $username, ":password" => $password, ":email" => $email, ":type" => $type)
+	$parameters = array(":username" => $username, ":password" => $password, ":email" => $email, ":type" => $type);
 
 	$sql = "INSERT INTO users (username, password, email, type) VALUES (:username, :password, :email, :type)";
 
@@ -22,6 +22,6 @@
 	$query = $connection->prepare($sql);
 	$query->execute($parameters);
 
-	return json_encode(array("success" => True, "message" => "User account created.")
+	return json_encode(array("success" => True, "message" => "User account created."));
 
 ?>
