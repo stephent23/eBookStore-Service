@@ -1,6 +1,7 @@
 <?php
 	
 	class databaseConnection extends PDO {
+		
 		function connectToDatabase() {
 			$host = 'dragon.kent.ac.uk';
 			$dbname = 'sjt43';
@@ -17,5 +18,6 @@
 		}
 	}
 
-	echo connectToDatabase();
+	$db = new databaseConnection()
+	echo $db->connectToDatabase();
 ?>
