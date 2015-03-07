@@ -1,4 +1,4 @@
-# eBookStore-Service
+# eBookStore Service
 This is part of a coursework for an eCommerce Module at University. 
 
 The aim is to produce a web service for purchasing books in digital format. The service functionalities are offered by defining entry points (APIs) with specific GET and POST parameters and return JSON results so that different front-ends could be developed independently and other services could interface with it.
