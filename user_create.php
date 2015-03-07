@@ -1,5 +1,6 @@
 <?php
 	
+	include 'databaseConnection.php';
 	include 'common.php';
 
 	$username = $_POST['username'];
