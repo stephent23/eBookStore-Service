@@ -17,7 +17,4 @@
 			}
 		}
 	}
-
-	$db = new databaseConnection()
-	echo $db->connectToDatabase();
 ?>
