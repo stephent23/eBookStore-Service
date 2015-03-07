@@ -1,7 +1,7 @@
 <?php
 	
-	include_once 'databaseConnection.php';
-	include_once 'common.php';
+	require_once 'databaseConnection.php';
+	require_once 'common.php';
 
 	$username = $_POST['username'];
 	$password = hashPassword($_POST['password']);
