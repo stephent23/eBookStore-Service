@@ -5,7 +5,7 @@
 	$username = $_POST['username'];
 	$password = hashPassword($_POST['password']);
 	$email = $_POST['email'];
-	$type = "user"
+	$type = "user";
 
 	if (checkEmail($email) == false) {
 		return json_encode(array("success" => False, "message" => "Invalid Email Address."))
