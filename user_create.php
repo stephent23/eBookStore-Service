@@ -1,30 +1,20 @@
 <?php
 	
-	require_once 'databaseConnection.php';
-	require_once 'common.php';
+	require_once 'api.php';
 
-	$username = $_POST['username'];
-	$password = hashPassword($_POST['password']);
-	$email = $_POST['email'];
-	$type = "user";
+	if($_SERVER['REQUEST_METHOD'] == "POST") {
+		$username = $_POST['username'];
+		$password = $_POST['password'];
+		$email = $_POST['email'];
 
-	if (checkEmail($email) == false) {
-		echo json_encode(array("success" => False, "message" => "Invalid Email Address."));
+		$response = userCreate($username, $password, $email);
+
+		echo json_encode($response);
+	}
+	else { 
+		echo json_encode(array("success" => False, "message" => "The request sent was not a POST request."));
 	}
 
-	$parameters = array(":username" => $username, ":password" => $password, ":email" => $email, ":type" => $type);
 
-	$sql = "INSERT INTO users (username, password, email, type) VALUES (:username, :password, :email, :type)";
-
-	try {
-		$connection = connectToDatabase();
-		$query = $connection->prepare($sql);
-		$query->execute($parameters);
-
-		echo json_encode(array("success" => True, "message" => "User account created."));
-	} 
-	catch (PDOException $exception) { 
-		echo json_encode(array("success" => False, "message" => ""));
-	}
 
 ?>
