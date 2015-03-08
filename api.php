@@ -46,4 +46,33 @@
 		}
 	}
 
+	function login($username, $password) {
+		$hashedPassword = hashPassword($password);
+
+		$parameters = array(":username" => $username, ":password" => $hashedPassword);
+		$sql = "SELECT * FROM users WHERE username=:username AND password=:password";
+
+		try { 
+			$connection = connectToDatabase();
+			$query = $connection->prepare($sql);
+			$query->execute($parameters);
+
+			$result = $query->fetchAll();
+		}
+		catch (PDOException $exception) {
+			return array("success" => false, "message" => "Something went wrong, please try again.");
+		}
+
+		if(count($result) == 1) {
+			$userToLogin = $result[0];
+			$_SESSION['username'] = $userToLogin['username'];
+			$_SESSION['authority'] = $userToLogin['type'];
+
+			return array("success" => true, "message" => "Login Successful");
+		}
+		else {
+			return array("success" => false, "message" => "Incorrect Credentials");
+		}
+	}
+
 ?>
