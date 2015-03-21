@@ -1,65 +1,32 @@
 <?php
 
-	require_once 'databaseConnection.php';
+	require 'config.php';
 
-	//checks that the email provided is a valid email address
-	function checkEmail($email) {
-		return filter_var($email, FILTER_VALIDATE_EMAIL);
+	//Checks that the session is set (i.e. a user is logged in)
+	function isLoggedIn() {
+		session_start();
+		if(isset($_SESSION['username'])) {
+			return True;
+		}
+		return False;
 	}
 
-	//encrypts the password with a given, generic application salt
-	function encrypt($password) {
-		$salt = "4gfh21xdb231j54xdf51gbxgf8juser34";
-		return crypt($password, $salt);
+	//Checks that the authority session is set to admin
+	function checkSessionAdmin() {
+		session_start();
+		if ($_SESSION['authority'] == constant('ACC_TYPE_ADMIN')) {
+			return True;
+		}
+		return False;
 	}
 
-	//checks whether the username already exists in the database
-	function checkUsernameExists($username) { 
-		$parameters = array(":username" => $username);
-		$sql = "SELECT * FROM users WHERE username=:username";
-
-		try {
-			$connection = connectToDatabase();
-			$query = $connection->prepare($sql);
-			$query->execute($parameters);
-
-			$result = $query->fetchAll();
-
-			if(count($result) > 0) {
-				return True;
-			}
-			else {
-				return False;
-			}
+	//Checks that the authority session is set to user
+	function checkSessionUser() {
+		session_start();
+		if ($_SESSION['authority'] == constant('ACC_TYPE_USER')) {
+			return True;
 		}
-		catch (PDOException $exception) {
-			return "Failed";
-		}
-
-	}
-
-	//checks whether the email already exists in the database
-	function checkEmailExists($email) { 
-		$parameters = array(":email" => $email);
-		$sql = "SELECT * FROM users WHERE email=:email";
-
-		try {
-			$connection = connectToDatabase();
-			$query = $connection->prepare($sql);
-			$query->execute($parameters);
-
-			$result = $query->fetchAll();
-
-			if(count($result) > 0) {
-				return True;
-			}
-			else {
-				return False;
-			}
-		}
-		catch (PDOException $exception) {
-			return "Failed";
-		}
+		return False;
 	}
 
 ?>
