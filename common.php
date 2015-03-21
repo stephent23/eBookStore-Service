@@ -2,15 +2,18 @@
 
 	require_once 'databaseConnection.php';
 
+	//checks that the email provided is a valid email address
 	function checkEmail($email) {
 		return filter_var($email, FILTER_VALIDATE_EMAIL);
 	}
 
-	function hashPassword($password) {
+	//encrypts the password with a given, generic application salt
+	function encrypt($password) {
 		$salt = "4gfh21xdb231j54xdf51gbxgf8juser34";
-		return sha1($salt . $password);
+		return crypt($password, $salt);
 	}
 
+	//checks whether the username already exists in the database
 	function checkUsernameExists($username) { 
 		$parameters = array(":username" => $username);
 		$sql = "SELECT * FROM users WHERE username=:username";
@@ -35,6 +38,7 @@
 
 	}
 
+	//checks whether the email already exists in the database
 	function checkEmailExists($email) { 
 		$parameters = array(":email" => $email);
 		$sql = "SELECT * FROM users WHERE email=:email";
