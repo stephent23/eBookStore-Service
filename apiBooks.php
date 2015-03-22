@@ -116,4 +116,44 @@
 	}
 
 
+	/**
+	 * Queries the database with the book id and returns the image file path otherwise returns false
+	 * @param  Int The id of the book in the database
+	 * @return String/Boolean The file path of the image or False.
+	 */
+	function getImage($bookId) {
+		//SANITISE INPUT
+		if (!is_numeric($bookId)) {
+			return False;
+		}
+
+		//EXECUTE
+		//Build the parameters and assign the bookId
+		$parameters = array(":id" => $bookId);
+		$sql = "SELECT * FROM books WHERE id=:id";
+
+		try { 
+			$connection = connectToDatabase();
+			$query = $connection->prepare($sql);
+			$query->execute($parameters);
+
+			//retrieve the array of the record
+			$result = $query->fetch();
+			
+			//check that the result is not null, if not return the image path
+			if (!is_null($result)) {
+				$image = $result['image']; 
+				return $image;
+			}
+			else {
+				return False;
+			}
+			
+		}
+		catch (PDOException $exception) {
+			//catches the exception if unable to connect to the database
+			return False;
+		}
+	}
+
 ?>
