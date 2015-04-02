@@ -156,4 +156,75 @@
 		}
 	}
 
+	function getBooks($title, $authors, $start, $length) {
+		//SANITISE INPUT
+		//check that start is either equal to none or a number  
+		
+		if ($start != "") {
+			if (!is_numeric($start)) { 
+				return False;
+			}
+		}
+		else { 
+			//If an offset is not specified then set it to zero
+			$start = 0;
+		}
+		//check that the length is either equal to none or a number
+		if($length != "") {
+			if (!is_numeric($length)) {
+				return False; 
+			}
+		}
+
+		//EXECUTE
+		//Build the parameters array with the correct parameters
+		$parameters = array(":title" => $title, ":authors" => $authors);
+		$sql = "SELECT * FROM books WHERE ((title LIKE concat('%', :title, '%')) AND (authors LIKE concat('%', :authors, '%')))";
+		$results;
+		try {
+			$connection = connectToDatabase();
+			$query = $connection->prepare($sql);
+			$query->execute($parameters);
+
+			//retrieve the array of the record
+			$results = $query->fetchAll(PDO::FETCH_ASSOC);
+			
+		}
+		catch (PDOException $exception) {
+			//catches the exception if unable to connect to the database
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
+		//The list of books that will be returned 
+		$books = array();
+		//A counter to know where in the list of books you are
+		$counter = 0;
+		//Loop through each of the books (results) that have been retrieved from the db
+		foreach ($results as $book) {
+			//TODO: THIS DOES NOT WORK
+			//Remove the image and the content fields from the arrays
+			if (($key = array_search('image', $book)) !== False) {
+    			unset($book[$key]);
+			}
+			if (($key = array_search('content', $book)) !== False) {
+				unset($book[$key]);
+			}
+			 
+			//if length is not set then providing the counter is more than the offset add the book to the list of books
+			if($length == "") {
+				if ($counter >= $start) {
+					array_push($books, $book);
+				}
+				$counter++;
+			}
+			//if the length is set
+			else if (($counter >= $start) &&  ($counter < $length)) {
+				array_push($books, $book);
+				$counter++;
+			}
+		}
+
+		return $books;
+	}
+
 ?>
