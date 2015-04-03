@@ -130,7 +130,7 @@
 		//EXECUTE
 		//Build the parameters and assign the bookId
 		$parameters = array(":id" => $bookId);
-		$sql = "SELECT * FROM books WHERE id=:id";
+		$sql = "SELECT * FROM books WHERE book_id=:id";
 
 		try { 
 			$connection = connectToDatabase();
@@ -156,13 +156,23 @@
 		}
 	}
 
+	/**
+	 * Queries the database table books with two optional parameters, title and authors. 
+	 * Selects anything that contains what is in those parameters. 
+	 * Then loops through what was retrieved and returns the books that are between the offset and the offset + length.
+	 * @param  String $title   A string that appears within the title of a book.
+	 * @param  String $authors A string that appears within the title of the authors.
+	 * @param  Integer $start   A number where the loop will start at when looping through the books.
+	 * @param  Integer $length  A number where the loop will end at when looping through the books. This is added to the start variable.
+	 * @return Array  An array of books or the errror message.
+	 */
 	function getBooks($title, $authors, $start, $length) {
 		//SANITISE INPUT
 		//check that start is either equal to none or a number  
 		
 		if ($start != "") {
 			if (!is_numeric($start)) { 
-				return False;
+				return array("success" => False, "message" => "Start and Length inputs have to be numeric.");
 			}
 		}
 		else { 
@@ -201,14 +211,9 @@
 		$counter = 0;
 		//Loop through each of the books (results) that have been retrieved from the db
 		foreach ($results as $book) {
-			//TODO: THIS DOES NOT WORK
 			//Remove the image and the content fields from the arrays
-			if (($key = array_search('image', $book)) !== False) {
-    			unset($book[$key]);
-			}
-			if (($key = array_search('content', $book)) !== False) {
-				unset($book[$key]);
-			}
+    		unset($book['image']);
+			unset($book['content']);
 			 
 			//if length is not set then providing the counter is more than the offset add the book to the list of books
 			if($length == "") {
