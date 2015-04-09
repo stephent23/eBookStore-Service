@@ -38,4 +38,13 @@
 		return False;
 	}
 
+	/**
+	 * Returns the logged in users username as set in the session variable 'username'
+	 * @return String The username of the logged in user
+	 */
+	function getSessionUsername() {
+		session_start();
+		return $_SESSION['username'];
+	}
+
 ?>
