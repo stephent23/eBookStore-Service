@@ -34,22 +34,19 @@
 		//CHECK ALL FIELDS ARE FILLED OUT
 		//check that the inputs that are string/int are not empty 
 		//list of the required input fields in the form
-		$requiredInput = array('title', 'authors', 'description', 'price');
+		$requiredInput = array($title, $authors, $description, $price);
 		foreach($requiredInput as $input) {
 	  		if (empty($input)) {
-	    		echo json_encode(array("success" => False, "message" => "The request sent contained empty fields."));
-	    		exit;
+	    		return array("success" => False, "message" => "The request sent contained empty fields.");
 	  		}
 		}
 
 		//check whether the file upload fields are empty
 		if($_FILES["image"]["error"] == 4) {
-			echo json_encode(array("success" => False, "message" => "The image field cannot be left empty."));
-			exit;
+			return array("success" => False, "message" => "The image field cannot be left empty.");
 		}
 		if($_FILES["content"]["error"] == 4) {
-			echo json_encode(array("success" => False, "message" => "The content field cannot be left empty."));
-			exit;
+			return array("success" => False, "message" => "The content field cannot be left empty.");
 		}
 
 
@@ -101,7 +98,6 @@
 				}
 				catch (PDOException $exception) {
 					//catches the exception if unable to connect to the database
-					return $exception;
 					return array("success" => False, "message" => "Something went wrong, please try again.");
 				}
 			}
@@ -230,6 +226,52 @@
 		}
 
 		return $books;
+	}
+
+	/**
+	 * Given a valid book ID this method will query the database for the information associated with that book as well as any
+	 * associated review_ids. If no book is found it will return an appropriate response.
+	 * @param  Integer $bookId The ID of the book that is to be queried.
+	 * @return Array           An array containing the success as a boolean and then the information about the book/reviews or a message
+	 *                            explaining any issues.
+	 */
+	function getBook($bookId) { 
+		if (!is_numeric($bookId)) {
+			return array("success" => False, "message" => "Incorrect Data Type: Book ID has to be an integer.");
+		}
+
+		$parameters = array(":bookId" => $bookId);
+		$sqlBook = "SELECT book_id, title, authors, description, price FROM books
+		 				WHERE (book_id = :bookId)";
+
+		 $sqlReviews = "SELECT review_id FROM reviews WHERE (book_id = :bookId)";
+
+
+		$results;
+		try {
+			$connection = connectToDatabase();
+			//retrieve the array of the book
+			$queryBook = $connection->prepare($sqlBook);
+			$queryBook->execute($parameters);
+			$book = $queryBook->fetch(PDO::FETCH_ASSOC);
+
+			//retreive the array of the review IDs
+			$queryReviews = $connection->prepare($sqlReviews);
+			$queryReviews->execute($parameters);
+			$reviews = $queryReviews->fetchAll(PDO::FETCH_ASSOC);
+
+			if($book != False) {
+				return array("success" => True, "book" => $book, "reviews" => $reviews);
+			}
+			else {
+				return array("success" => False, "message" => "A book with the given ID does not exist.");
+			}
+		}
+		catch (PDOException $exception) {
+			//catches the exception if unable to connect to the database
+			return $exception;
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
 	}
 
 ?>
