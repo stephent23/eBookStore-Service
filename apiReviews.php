@@ -4,6 +4,14 @@
 	require 'databaseConnection.php';
 	require 'common.php';
 
+	/**
+	 * Creates a review in the database, that is associated with the user logged in and a book that is already in the database
+	 * @param  Integer $bookId   The id of the book that the review is for
+	 * @param  String $username The username of the person that has written the review
+	 * @param  String $review   The content of the review (text)
+	 * @param  Integer $rating   The rating of the book (Should be between 1-5)
+	 * @return Array           The success of failure of the insertion
+	 */
 	function createReview($bookId, $username, $review, $rating) {
 		//CHECK USER AUTHENTICATION
 		//check that the user is logged in
