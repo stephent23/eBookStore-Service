@@ -50,25 +50,37 @@
 			return array("success" => False, "message" => "Rating has to be an integer between 0 and 5.");
 		}
 
+		$checkBookParam = array(":book_id" => $bookId);
+		$checkBookSQL = "SELECT COUNT(*) FROM books WHERE(book_id = :book_id)";
+
+		$checkReviewParam = array(":book_id" => $bookId, ":username" => $username);
+		$checkReviewSQL = "SELECT COUNT(*) FROM reviews WHERE(book_id = :book_id AND username = :username)";
+
 		$parameters = array(":username" => $username, 
 			":book_id" => $bookId,
 			":review" => $review,
 			"rating" => $rating);
-
-		$checkBookParam = array(":book_id" => $bookId);
-		$checkBookSQL = "SELECT COUNT(*) FROM books WHERE(book_id = :book_id)";
 
 		$sql = "INSERT INTO reviews (book_id, username, review, rating) 
 			VALUES (:book_id, :username, :review, :rating)";
 
 		try { 
 			$connection = connectToDatabase();
+			
 			//check book exists 
 			$queryCheck = $connection->prepare($checkBookSQL);
 			$queryCheck->execute($checkBookParam);
 			$count = $queryCheck->fetch(PDO::FETCH_NUM);
 			if ($count[0] != 1) {
 				return array("success" => False, "message" => "No book with the ID given exists.");
+			}
+
+			//check if a review for book has already been added by the user
+			$queryCheckReview = $connection->prepare($checkReviewSQL);
+			$queryCheckReview->execute($checkReviewParam);
+			$countReview = $queryCheckReview->fetch(PDO::FETCH_NUM);
+			if ($countReview[0] != 0) {
+				return array("success" => False, "message" => "You have already created a review for this book. Please use the update feature if you would like to change it.");
 			}
 
 			//Insert the review in into the db
