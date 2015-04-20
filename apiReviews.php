@@ -223,6 +223,13 @@
 		}
 	}
 
+	/**
+	 * Deletes the review with the given ID.
+	 * Providing that the review exists (this is handled)
+	 * and also providing that they are an admin user or they created the review.
+	 * @param  Integer $reviewId The ID of the review to be deleted.
+	 * @return Array           An array containing the success (True/False) and the associated message.
+	 */
 	function deleteReview($reviewId) {
 		if (!is_numeric($reviewId)) {
 			return array("success" => False, "message" => "Incorrect Data Type: Review ID has to be an integer.");
@@ -247,7 +254,7 @@
 			//check that the user is admin or they created the review, if not then return message.
 			if(!checkSessionAdmin()) {
 				if ($user['username'] != getSessionUsername()) {
-					return array("success" => False, "message" => "You are not authorised to delete this review. Admin/Review creator are only authorised to delete this.");
+					return array("success" => False, "message" => "You are not authorised to delete this review. Only the review creator or an admin are only authorised to delete this.");
 				}
 			}
 

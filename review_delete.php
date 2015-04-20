@@ -10,7 +10,7 @@
 		//assign each form input to a variable 
 		$reviewId = $_GET['review_id'];
 
-		//run the createReview method which is in apiReviews
+		//run the deleteReview method which is in apiReviews
 		$response = deleteReview($reviewId);
 
 		echo json_encode($response);
