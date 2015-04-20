@@ -223,4 +223,45 @@
 		}
 	}
 
+	function deleteReview($reviewId) {
+		if (!is_numeric($reviewId)) {
+			return array("success" => False, "message" => "Incorrect Data Type: Review ID has to be an integer.");
+		}
+		
+		$parameters = array(":reviewId" => $reviewId);
+
+		$checkUserSql = "SELECT username FROM reviews WHERE (review_id = :reviewId)";
+		$sql = "DELETE FROM reviews WHERE (review_id = :reviewId)";
+		
+		try {
+			$connection = connectToDatabase();
+			//get the user and see if the review exists
+			$checkUser = $connection->prepare($checkUserSql);
+			$checkUser->execute($parameters);
+			$user = $checkUser->fetch();
+			//check if a review with the given ID exists
+			if($user == False) {
+				return array("success"=>False, "message" => "No review with the given ID exists.");
+			}
+
+			//check that the user is admin or they created the review, if not then return message.
+			if(!checkSessionAdmin()) {
+				if ($user['username'] != getSessionUsername()) {
+					return array("success" => False, "message" => "You are not authorised to delete this review. Admin/Review creator are only authorised to delete this.");
+				}
+			}
+
+			$delete = $connection->prepare($sql);
+			$delete->execute($parameters);
+
+			return array("success" => True, "message" => "Review deleted.");
+		}
+		catch (PDOException $exception) {
+			//catches the exception if unable to connect to the database
+			return $exception;
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
+	}
+
 ?>
