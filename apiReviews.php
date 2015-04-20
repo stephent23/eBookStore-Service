@@ -99,6 +99,14 @@
 
 	}
 
+	/**
+	 * This method allows a review to be updated, providing that the user that is trying to update it is the same user that created it.
+	 * @param  Integer $bookId   The id of the book that is to be updated
+	 * @param  String $username The username of the user that wants to update the review
+	 * @param  String $review   The review that is given itself, replaces the current review in the database
+	 * @param  Integer $rating   The rating that the book should be given, between 1 and 5. Replaces the review that is already in the database.
+	 * @return array           An array stating the the success/failure and an associated message.
+	 */
 	function updateReview($bookId, $username, $review, $rating) {
 		//CHECK USER AUTHENTICATION
 		//check that the user is logged in
@@ -177,6 +185,42 @@
 		}
 
 
+	}
+
+	/**
+	 * This method returns the details of a review, given the review id.
+	 * @param  Integer $reviewId The ID of the review that is to be retrieved from the database.
+	 * @return Array           The review itself or if it doesn't exist an appropriate message. 
+	 */
+	function getReview($reviewId) { 
+		if (!is_numeric($reviewId)) {
+			return array("success" => False, "message" => "Incorrect Data Type: Review ID has to be an integer.");
+		}
+
+		$parameters = array(":reviewId" => $reviewId);
+		$sql = "SELECT book_id, username, review, rating FROM reviews
+		 				WHERE (review_id = :reviewId)";
+
+		try {
+			$connection = connectToDatabase();
+			//retrieve the array of the review
+			$queryReview = $connection->prepare($sql);
+			$queryReview->execute($parameters);
+			$review = $queryReview->fetch(PDO::FETCH_ASSOC);
+
+			if($review != False) {
+				return array("success" => True, "book_id" => $review['book_id'], "user" => $review['username'], 
+					"review" => $review['review'], "rating" => $review['rating']);
+			}
+			else {
+				return array("success" => False, "message" => "A review with the given ID does not exist.");
+			}
+		}
+		catch (PDOException $exception) {
+			//catches the exception if unable to connect to the database
+			return $exception;
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
 	}
 
 ?>
