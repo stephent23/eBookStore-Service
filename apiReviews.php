@@ -1,8 +1,8 @@
 <?php
 
 	//require the database connection and the common methods class
-	require 'databaseConnection.php';
-	require 'common.php';
+	require_once 'databaseConnection.php';
+	require_once 'common.php';
 
 	/**
 	 * Creates a review in the database, that is associated with the user logged in and a book that is already in the database

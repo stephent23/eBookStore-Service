@@ -2,8 +2,6 @@
 
 	require_once 'apiReviews.php';
 
-	session_start();
-
 	//only accepts post requests. No other HTTP request method.
 	if($_SERVER['REQUEST_METHOD'] == "GET") {
 

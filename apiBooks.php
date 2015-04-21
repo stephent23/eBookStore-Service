@@ -1,8 +1,8 @@
 <?php
 
 	//require the database connection and the common methods class
-	require 'databaseConnection.php';
-	require 'common.php';
+	require_once 'databaseConnection.php';
+	require_once 'common.php';
 
 	/**
 	 * This checks that the user is an administrator and if so allows them to create a book. 
@@ -69,9 +69,9 @@
 
 		//EXECUTE
 		//setting the target directories for the image and the content
-		$target_dir_image = "uploads/images/";
+		$target_dir_image = "../../../assessment2_data/sjt43/public_html/uploads/images";
 		$target_file_image = $target_dir_image . basename($image['name']);
-		$target_dir_content = "uploads/content/";
+		$target_dir_content = "../../../assessment2_data/sjt43/public_html/uploads/content/";
 		$target_file_content = $target_dir_content . basename($content['name']);
 		
 		//set up the query to insert the details of the book into the database.

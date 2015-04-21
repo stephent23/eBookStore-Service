@@ -1,8 +1,8 @@
 <?php
 
 	//require the database connection and the common methods class
-	require 'databaseConnection.php';
-	require 'config.php';
+	require_once 'databaseConnection.php';
+	require_once 'config.php';
 
 	/**
 	 * Allows a user to register/be created. Adds the details of the user to the database. 
