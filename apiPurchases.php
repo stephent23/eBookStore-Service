@@ -1,10 +1,14 @@
 <?php
 
-	require_once __DIR__.'config.php';
+	require_once 'config.php';
+	require_once 'databaseConnection.php';
+	require_once 'common.php';
 	require_once PAYPAL_PHP_SDK . '/vendor/autoload.php';
 
 	use PayPal\Api\Amount;
 	use PayPal\Api\Payer;
+	use PayPal\Api\Item;
+	use PayPal\Api\ItemList;
 	use PayPal\Api\Payment;
 	use PayPal\Api\RedirectUrls;
 	use PayPal\Api\Transaction;
@@ -19,7 +23,7 @@
 
 		//check that the user that is logged in, is of account type 'user'
 		if (checkSessionUser() != True) {
-			return array("success" => False, "message" => "Only users are able to create books.");
+			return array("success" => False, "message" => "Only users are able to purchase books.");
 		}
 
 		//check that the username given matches the username in the session
@@ -27,9 +31,14 @@
 			return array("success" => False, "message" => "The username given is not the same as the user that is logged in");
 		}
 
-		//CHECK THAT THE GIVEN BOOK ID EXISTS/GET TEH BOOK FROM THE DATABASE
-		$checkBookParam = array(":book_id" => $bookId);
+		//CHESKS THAT THE BOOK IS VALID/NOT PURCHASED
+		//checks that a book with the given ID exists
 		$checkBookSQL = "SELECT * FROM books WHERE(book_id = :book_id)";
+		$checkBookParam = array(":book_id" => $bookId);
+
+		//checks whether a purchase has been made
+		$checkPurchaseSQL =  "SELECT * FROM purchases WHERE((book = :book_id) AND (username = :username))";
+		$checkPurchaseParam = array(":book_id" => $bookId, ":username" => $username);
 
 		//the variable that will contain the associative array of the book
 		$bookInformation = "";
@@ -46,6 +55,24 @@
 			if ($bookInformation == False) {
 				return array("success" => False, "message" => "No book with the ID given exists.");
 			}
+
+			//checks whether there are already purchases in the database for that book/user
+			$queryPurchases = $connection->prepare($checkPurchaseSQL);
+			$queryPurchases->execute($checkPurchaseParam);
+			$purchaseInformation = $queryPurchases->fetch(PDO::FETCH_ASSOC);
+
+			//check if purchase exists
+			if ($purchaseInformation != False) {
+				//check if the purchase is complete, if it is inform the user they have puchased the book otherwise take them to the URL to accept the purchase.
+				if ($purchaseInformation['executed'] == 0) {
+					$url = $purchaseInformation['paypal_payment_url'];
+					header("Location: $url");
+					exit(1);
+				}
+				else {
+					return array("success" => False, "message" => "This book has already been purchased.");
+				}
+			}
 		}
 		catch (PDOException $exception) {
 			//catches the exception if unable to connect to the database
@@ -54,7 +81,7 @@
 		}
 
 		$approvalUrl = payPalCreate($bookInformation, $username);
-		header("Location: $approvalUrl");
+		//header("Location: $approvalUrl->getApprovalLink()");
 
 	}
 
@@ -67,7 +94,7 @@
 		// information
 		$book = new Item();
 		$book->setName($bookInformation['title'])
-		    ->setCurrency('GBP')
+		    ->setCurrency('USD')
 		    ->setQuantity(1)
 		    ->setPrice($bookInformation['price']);
 
@@ -79,7 +106,7 @@
 		// You can also specify additional details
 		// such as shipping, tax.
 		$cost = new Amount();
-		$cost->setCurrency("GBP")
+		$cost->setCurrency("USD")
 		    ->setTotal($bookInformation['price']);
 
 		// ### Transaction
@@ -92,9 +119,10 @@
 		    ->setDescription("This purchase order is for the following book: " + $bookInformation['title'] + ".")
 		    ->setInvoiceNumber(uniqid());
 
-		$redirectUrls = new RedirectUrls(); 
-		$redirectUrls->setReturn_url("http://raptor.kent.ac.uk/proj/co639/assessment2/sjt43/purchase_create.php?success=true"); 
-		$redirectUrls->setCancel_url("http://raptor.kent.ac.uk/proj/co639/assessment2/sjt43/purchase_create.php?success=false");
+		$redirectUrls = new RedirectUrls();
+		$baseUrl = constant("SERVICE_URL");
+		$redirectUrls->setReturnUrl("$baseUrl/payPalRedirect.php?success=true")
+			->setCancelUrl("$baseUrl/payPalRedirect.php?success=false");
 
 		// ### Payment
 		// A Payment Resource; create one using
@@ -102,6 +130,7 @@
 		$payment = new Payment();
 		$payment->setIntent("sale")
 		    ->setPayer($payer)
+		    ->setRedirectUrls($redirectUrls)
 		    ->setTransactions(array($transaction));
 
 		// ### Create Payment
@@ -114,7 +143,7 @@
 		try {
 		    $payment->create();
 		} catch (Exception $ex) {
-			echo $ex;
+			echo $ex->getData();
 			exit(0);
 		}
 
@@ -124,23 +153,24 @@
 
 		$parameters = array(":username" => $username, 
 			":book_id" => $bookInformation['book_id'],
-			"payment_id" => $id);
+			":payment_id" => $id,
+			":url" => $approvalUrl);
 
-		$sql = "INSERT INTO purchases (username, book, payment_id) 
-			VALUES (:book_id, :username, :payment_id)";
+		$sql = "INSERT INTO purchases (username, book, payment_id, paypal_payment_url) 
+			VALUES (:username, :book_id, :payment_id, :url)";
 
 		try {
 			$connection = connectToDatabase();
-			
 			//Insert the review in into the db
 			$queryInsert = $connection->prepare($sql);
 			$queryInsert->execute($parameters);
+
 		}
 		catch (PDOException $exception) {
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
 
-		return $approvalUrl;
+		header("Location: $approvalUrl");
 	}
 
 ?>
