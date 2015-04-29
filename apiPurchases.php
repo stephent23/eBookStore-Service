@@ -3,6 +3,7 @@
 	require_once 'config.php';
 	require_once 'databaseConnection.php';
 	require_once 'common.php';
+	require_once 'apiAuditLog.php';
 	require_once PAYPAL_PHP_SDK . '/vendor/autoload.php';
 
 	use PayPal\Api\Amount;
@@ -14,6 +15,16 @@
 	use PayPal\Api\Transaction;
 	use PayPal\Api\PaymentExecution;
 
+	/**
+	 * This method checks that the user is legitimate and that the book that they are trying to purchase exists. 
+	 * It then checks that the user has not already purchased the book. If they have purchased but not accepted they are sent to the 
+	 * payment page (PayPal) otherwise appropriate message is fedback to the user. If it is a legitimate request then the 
+	 * PayPal method is invoked.
+	 * 
+	 * @param  Integer $bookId   The id of the book that is to be purchased.
+	 * @param  String $username The username of the user that wants to purchase the book. 
+	 * @return Array/Website Appropriate message or redirect to PayPal website.           
+	 */
 	function createPurchase($bookId, $username) {
 		//CHECK USER AUTHENTICATION
 		//check that the user is logged in
@@ -28,6 +39,7 @@
 
 		//check that the username given matches the username in the session
 		if($username != getSessionUsername()) {
+			createLogEntry("Create Purchase", getSessionUsername(), "The user that is logged in does not match the username given.");
 			return array("success" => False, "message" => "The username given is not the same as the user that is logged in");
 		}
 
@@ -53,6 +65,7 @@
 
 			//check that the book exists
 			if ($bookInformation == False) {
+				createLogEntry("Create Purchase", getSessionUsername(), "No book with the given ID exists.");
 				return array("success" => False, "message" => "No book with the ID given exists.");
 			}
 
@@ -65,18 +78,21 @@
 			if ($purchaseInformation != False) {
 				//check if the purchase is complete, if it is inform the user they have puchased the book otherwise take them to the URL to accept the purchase.
 				if ($purchaseInformation['executed'] == 0) {
+					createLogEntry("Create Purchase", getSessionUsername(), "Purchase has already been created but transaction is yet to be completed.");
 					$url = $purchaseInformation['paypal_payment_url'];
 					header("Location: $url");
 					exit(1);
 				}
 				else {
+					createLogEntry("Create Purchase", getSessionUsername(), "The book has already been purchased.");
 					return array("success" => False, "message" => "This book has already been purchased.");
 				}
 			}
 		}
 		catch (PDOException $exception) {
 			//catches the exception if unable to connect to the database
-			return $exception;
+			//return $exception;
+			createLogEntry("Create Purchase", getSessionUsername(), "PDO Exception. Transaction aborted.");
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
 
@@ -85,6 +101,13 @@
 
 	}
 
+	/**
+	 * This method creates the payment with PayPal and directs the user to the website. Also, adds the relevant
+	 * information to the database.
+	 * @param  Array $bookInformation The information about the book that is to be purchased.
+	 * @param  String $username       The username of the user that is purchasing the book.
+	 * @return Array/Redirect         Appropriate message/Redirect to the PayPal website. 
+	 */
 	function payPalCreate($bookInformation, $username) {
 		$payer = new Payer();
 		$payer->setPaymentMethod("paypal");
@@ -142,6 +165,7 @@
 		// for payment approval
 		try {
 		    $payment->create();
+		    createLogEntry("Create Purchase", getSessionUsername(), "Payment created.");
 		} catch (Exception $ex) {
 			echo $ex->getData();
 			exit(0);
@@ -167,6 +191,7 @@
 
 		}
 		catch (PDOException $exception) {
+			createLogEntry("Create Purchase", getSessionUsername(), "PDO Exception. Transaction created with PayPal but not inserted into database.");
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
 
