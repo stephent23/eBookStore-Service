@@ -92,7 +92,7 @@
 		}
 		catch (PDOException $exception) {
 			//catches the exception if unable to connect to the database
-			return $exception;
+					//return $exception;
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
 
