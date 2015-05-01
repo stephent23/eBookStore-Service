@@ -14,6 +14,7 @@
 	use PayPal\Api\RedirectUrls;
 	use PayPal\Api\Transaction;
 	use PayPal\Api\PaymentExecution;
+	use PayPal\Api\ExecutePayment;
 
 	/**
 	 * This method checks that the user is legitimate and that the book that they are trying to purchase exists. 
@@ -166,8 +167,9 @@
 		try {
 		    $payment->create();
 		    createLogEntry("Create Purchase", getSessionUsername(), "Payment created.");
-		} catch (Exception $ex) {
+		} catch (PPConnectionException $ex) {
 			echo $ex->getData();
+			createLogEntry("Create Purchase", getSessionUsername(), "PPConnection Exception. Transaction unable to be created with PayPal.");
 			exit(0);
 		}
 
@@ -196,6 +198,95 @@
 		}
 
 		header("Location: $approvalUrl");
+	}
+
+	function activatePurchase($bookId, $username, $token, $PayerID) {
+		//CHECK USER AUTHENTICATION
+		//check that the user is logged in
+		if (!isLoggedIn()) {
+			return array("success" => False, "message" => "Please log in in order to access this page.");
+		}
+
+		//check that the user that is logged in, is of account type 'user'
+		if (checkSessionUser() != True) {
+			return array("success" => False, "message" => "Only users are able to purchase books.");
+		}
+
+		//check that the username given matches the username in the session
+		if($username != getSessionUsername()) {
+			createLogEntry("Activate Purchase", getSessionUsername(), "The user that is logged in does not match the username given.");
+			return array("success" => False, "message" => "The username given is not the same as the user that is logged in");
+		}
+
+		//get the payment ID from the database
+		$paymentIDRetrieveSQL = "SELECT * FROM purchases WHERE ((username = :user) AND (book = :bookId))";
+		$paymentIDRetrieveParams = array(":user" => $username, ":bookId" => $bookId);
+
+		$paymentID;
+		try { 
+			$connection = connectToDatabase();
+			
+			//select the payment ID from the database
+			$queryPaymentId = $connection->prepare($paymentIDRetrieveSQL);
+			$queryPaymentId->execute($paymentIDRetrieveParams);
+			$paymentIDArray = $queryPaymentId->fetch(PDO::FETCH_ASSOC);
+
+			$paymentID = $paymentIDArray['payment_id'];
+
+			//check that the book exists
+			if ($paymentID == False) {
+				createLogEntry("Activate Purchase", getSessionUsername(), "No payment for the given book and user exists.");
+				return array("success" => False, "message" => "No book with the ID given exists.");
+			}
+		}
+		catch (PDOException $e) {
+			createLogEntry("Activate Purchase", getSessionUsername(), "PDO Exception. Unable to retrieve payment ID from the database.");
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
+		try {
+			//Get the payment object
+			$payment = Payment::get($paymentID);
+		}
+		catch (PPConnectionException $e) {
+			echo $ex->getData();
+			createLogEntry("Activate Purchase", getSessionUsername(), "PPConnection Exception. Unable to retrieve payment from PayPal.");
+			exit(0);
+		}
+		//Create a new payment execution and assign the payer ID
+		$execution = new PaymentExecution(); 
+		$execution->setPayerId($PayerID);
+
+		$executed = "";
+		try {
+			$executed = $payment->execute($execution);
+		}
+		catch (PPConnectionException $e) {
+			echo $ex->getData();
+			createLogEntry("Activate Purchase", getSessionUsername(), "PPConnection Exception. Transaction unable to be executed with PayPal.");
+			exit(0);
+		}
+
+		$purchasedSQL = "UPDATE purchases VALUES executed='True' WHERE (payment_id = :paymentID)";
+		$purchasedParams = array(":paymentID" => $paymentID);
+
+		try { 
+			$connection = connectToDatabase();
+			
+			//update the puchase to executed in the database
+			$queryPaymentId = $connection->prepare($purchasedSQL);
+			$queryPaymentId->execute($purchasedParams);
+
+		}
+		catch (PDOException $e) {
+			createLogEntry("Activate Purchase", getSessionUsername(), "PDO Exception. Unable to update executed to true in the database. PayPal payment executed.");
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
+		echo $executed;
+		createLogEntry("Activate Purchase", getSessionUsername(), "Payment activated successfully. Book purchased.");
+		return array("success" => True, "message" => "Payment activated successfully. Book purchased. Thank you.");
+
 	}
 
 ?>

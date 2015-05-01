@@ -29,16 +29,6 @@
 			return array("success" => False, "message" => "The username given is not the same as the user that is logged in");
 		}
 
-		//CHECK ALL FIELDS ARE FILLED OUT
-		//check that the inputs that are string/int are not empty 
-		//list of the required input fields in the form
-		$requiredInput = array($bookId, $review, $rating);
-		foreach($requiredInput as $input) {
-	  		if ($input == "" || $input == None) {
-	    		return array("success" => False, "message" => "The request sent contained empty fields.");
-	  		}
-		}
-
 		//SANITISE INPUT
 		//check that rating is a number and that it is between 1 and 5
 		if (is_numeric($rating)) { 
@@ -117,16 +107,6 @@
 		//check that the username given matches the username in the session
 		if($username != getSessionUsername()) {
 			return array("success" => False, "message" => "The username given is not the same as the user that is logged in");
-		}
-
-		//CHECK ALL FIELDS ARE FILLED OUT
-		//check that the inputs that are string/int are not empty 
-		//list of the required input fields in the form
-		$requiredInput = array($bookId, $review, $rating);
-		foreach($requiredInput as $input) {
-	  		if ($input == "" || $input == None) {
-	    		return array("success" => False, "message" => "The request sent contained empty fields.");
-	  		}
 		}
 
 		//SANITISE INPUT

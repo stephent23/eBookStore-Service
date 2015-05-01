@@ -30,17 +30,6 @@
 			return array("success" => False, "message" => "Only admin users are able to create books.");
 		}
 
-
-		//CHECK ALL FIELDS ARE FILLED OUT
-		//check that the inputs that are string/int are not empty 
-		//list of the required input fields in the form
-		$requiredInput = array($title, $authors, $description, $price);
-		foreach($requiredInput as $input) {
-	  		if (empty($input)) {
-	    		return array("success" => False, "message" => "The request sent contained empty fields.");
-	  		}
-		}
-
 		//check whether the file upload fields are empty
 		if($_FILES["image"]["error"] == 4) {
 			return array("success" => False, "message" => "The image field cannot be left empty.");
@@ -210,6 +199,7 @@
 			//Remove the image and the content fields from the arrays
     		unset($book['image']);
 			unset($book['content']);
+			$book['price'] = floatval($book['price']);
 			 
 			//if length is not set then providing the counter is more than the offset add the book to the list of books
 			if($length == "") {
@@ -260,8 +250,20 @@
 			$queryReviews->execute($parameters);
 			$reviews = $queryReviews->fetchAll(PDO::FETCH_ASSOC);
 
+			$formattedBook = array();
+			$formattedBook['book_id'] = $book['book_id'];
+			$formattedBook['title'] = $book['title'];
+			$formattedBook['authors'] = $book['authors'];
+			$formattedBook['description'] = $book['description'];
+			$formattedBook['price'] = floatval($book['price']);
+
+			$reviewsArray = array();
+			foreach ($reviews as $review) {
+				array_push($reviewsArray, $review['review_id']);
+			}
+
 			if($book != False) {
-				return array("success" => True, "book" => $book, "reviews" => $reviews);
+				return array("success" => True, "book" => $formattedBook, "reviews" => $reviewsArray);
 			}
 			else {
 				return array("success" => False, "message" => "A book with the given ID does not exist.");
