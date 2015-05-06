@@ -145,8 +145,8 @@
 
 		$redirectUrls = new RedirectUrls();
 		$baseUrl = constant("SERVICE_URL");
-		$redirectUrls->setReturnUrl("$baseUrl/payPalRedirect.php?success=true")
-			->setCancelUrl("$baseUrl/payPalRedirect.php?success=false");
+		$redirectUrls->setReturnUrl("$baseUrl/purchase_activate.php?success=true")
+			->setCancelUrl("$baseUrl/purchase_activate.php?success=false");
 
 		// ### Payment
 		// A Payment Resource; create one using
@@ -200,6 +200,18 @@
 		header("Location: $approvalUrl");
 	}
 
+	/**
+	 * This method activates the purchase by using the standard methods provided by the PayPal api.
+	 * It then updates the database indicating that the book has been purchased and adds the book to the downloads table, 
+	 * this is so that the downloads are able to be tracked at a later date.
+	 * Records all steps in the audit log, by calling the appropriate functions.
+	 * 
+	 * @param  Integer $bookId   the id of the book that has been purchased.
+	 * @param  String $username the username of the person purchasing the book.
+	 * @param  String $token    token sent back once user has accepted the payment.
+	 * @param  String $PayerID  payPals ID of the person making the purchase.
+	 * @return Array           Appropriate message to user.
+	 */
 	function activatePurchase($bookId, $username, $token, $PayerID) {
 		//CHECK USER AUTHENTICATION
 		//check that the user is logged in
@@ -248,8 +260,8 @@
 			//Get the payment object
 			$payment = Payment::get($paymentID);
 		}
-		catch (PPConnectionException $e) {
-			echo $ex->getData();
+		catch (PayPal\Exception\PayPalConnectionException $e) {
+			return array("success" => False, "message" => "Unable to get payment.");
 			createLogEntry("Activate Purchase", getSessionUsername(), "PPConnection Exception. Unable to retrieve payment from PayPal.");
 			exit(0);
 		}
@@ -261,14 +273,20 @@
 		try {
 			$executed = $payment->execute($execution);
 		}
-		catch (PPConnectionException $e) {
-			echo $ex->getData();
+		catch (PayPal\Exception\PayPalConnectionException $e) {
+			return array("success" => False, "message" => "Unable to execute payment.");
 			createLogEntry("Activate Purchase", getSessionUsername(), "PPConnection Exception. Transaction unable to be executed with PayPal.");
 			exit(0);
 		}
 
-		$purchasedSQL = "UPDATE purchases VALUES executed='True' WHERE (payment_id = :paymentID)";
+		//update purchases
+		$purchasedSQL = "UPDATE purchases SET `executed`=1 WHERE (payment_id = :paymentID)";
 		$purchasedParams = array(":paymentID" => $paymentID);
+
+		//add to downloads
+		$downloadsInsertSQL = "INSERT INTO downloads (username, book_id) 
+			VALUES (:username, :book_id)";
+		$downloadsInsertParam = array(":username" => $username, ":book_id" => $bookId);
 
 		try { 
 			$connection = connectToDatabase();
@@ -276,16 +294,48 @@
 			//update the puchase to executed in the database
 			$queryPaymentId = $connection->prepare($purchasedSQL);
 			$queryPaymentId->execute($purchasedParams);
+			createLogEntry("Activate Purchase", getSessionUsername(), "Payment activated successfully. Book ID: $bookId purchased.");
+
+			//add book to downloads table
+			$downloadsInsert = $connection->prepare($downloadsInsertSQL);
+			$downloadsInsert->execute($downloadsInsertParam);
+			createLogEntry("Activate Purchase", getSessionUsername(), "Added to downloads. Book ID: $bookId.");
 
 		}
 		catch (PDOException $e) {
-			createLogEntry("Activate Purchase", getSessionUsername(), "PDO Exception. Unable to update executed to true in the database. PayPal payment executed.");
+			createLogEntry("Activate Purchase", getSessionUsername(), "PDO Exception. Unable to update executed to true in the database. PayPal payment executed. Book ID: $bookId");
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
 
-		echo $executed;
-		createLogEntry("Activate Purchase", getSessionUsername(), "Payment activated successfully. Book purchased.");
-		return array("success" => True, "message" => "Payment activated successfully. Book purchased. Thank you.");
+		return array("success" => True, "message" => "Payment successful, book purchased. Thank you.");
+
+	}
+
+	/**
+	 * Returns the bookId and the username associated with the payment
+	 * @param  String $paymentId The payment Id of the transaction
+	 * @return Array            Array containing the username and the bookId associcated with the transaction
+	 */
+	function getPurchaseInfo($paymentId) {
+		//get the payment ID from the database
+		$sql = "SELECT username, book FROM purchases WHERE (payment_id = :paymentId)";
+		$params = array(":paymentId" => $paymentId);
+
+		try { 
+			$connection = connectToDatabase();
+			
+			//select the payment ID from the databases
+			$query = $connection->prepare($sql);
+			$query->execute($params);
+			$result = $query->fetch(PDO::FETCH_ASSOC);
+
+			return $result;
+		}
+		catch (PDOException $e) {
+			createLogEntry("getPurchaseInfo", getSessionUsername(), "PDO Exception. Unable to retrieve payment info from the database.");
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
 
 	}
 

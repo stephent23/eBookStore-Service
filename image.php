@@ -23,7 +23,7 @@
 		}
 		else {
 			//return HTTP 404 status code
-			http_response_code(404);
+			header('HTTP/1.0 403 Forbidden');
 		}
 
 	}
