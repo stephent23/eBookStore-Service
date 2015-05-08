@@ -77,14 +77,8 @@
 
 			//check if purchase exists
 			if ($purchaseInformation != False) {
-				//check if the purchase is complete, if it is inform the user they have puchased the book otherwise take them to the URL to accept the purchase.
-				if ($purchaseInformation['executed'] == 0) {
-					createLogEntry("Create Purchase", getSessionUsername(), "Purchase has already been created but transaction is yet to be completed.");
-					$url = $purchaseInformation['paypal_payment_url'];
-					header("Location: $url");
-					exit(1);
-				}
-				else {
+				//check if the purchase is complete, if it is inform the user they have puchased the book.
+				if ($purchaseInformation['executed'] == 1) {
 					createLogEntry("Create Purchase", getSessionUsername(), "The book has already been purchased.");
 					return array("success" => False, "message" => "This book has already been purchased.");
 				}
@@ -146,7 +140,7 @@
 		$redirectUrls = new RedirectUrls();
 		$baseUrl = constant("SERVICE_URL");
 		$redirectUrls->setReturnUrl("$baseUrl/purchase_activate.php?success=true")
-			->setCancelUrl("$baseUrl/purchase_activate.php?success=false");
+			->setCancelUrl("$baseUrl/purchase_cancel.php?success=false");
 
 		// ### Payment
 		// A Payment Resource; create one using
@@ -247,7 +241,7 @@
 
 			//check that the book exists
 			if ($paymentID == False) {
-				createLogEntry("Activate Purchase", getSessionUsername(), "No payment for the given book and user exists.");
+				createLogEntry("Activate Purchase", getSessionUsername(), "No payment for the given book and user exists. Token: $token");
 				return array("success" => False, "message" => "No book with the ID given exists.");
 			}
 		}
@@ -294,7 +288,7 @@
 			//update the puchase to executed in the database
 			$queryPaymentId = $connection->prepare($purchasedSQL);
 			$queryPaymentId->execute($purchasedParams);
-			createLogEntry("Activate Purchase", getSessionUsername(), "Payment activated successfully. Book ID: $bookId purchased.");
+			createLogEntry("Activate Purchase", getSessionUsername(), "Payment activated successfully. Book ID: $bookId purchased. Token: $token");
 
 			//add book to downloads table
 			$downloadsInsert = $connection->prepare($downloadsInsertSQL);
@@ -303,7 +297,7 @@
 
 		}
 		catch (PDOException $e) {
-			createLogEntry("Activate Purchase", getSessionUsername(), "PDO Exception. Unable to update executed to true in the database. PayPal payment executed. Book ID: $bookId");
+			createLogEntry("Activate Purchase", getSessionUsername(), "PDO Exception. Unable to update executed to true in the database. PayPal payment executed. Book ID: $bookId . Token: $token");
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
 
@@ -335,8 +329,166 @@
 			createLogEntry("getPurchaseInfo", getSessionUsername(), "PDO Exception. Unable to retrieve payment info from the database.");
 			return array("success" => False, "message" => "Something went wrong, please try again.");
 		}
+	}
 
+	/**
+	 * Makes a call to the audit log passing accross the appropriate parameters.
+	 * @param  Integer $bookId   The ID of the book
+	 * @param  String $username The username of the user that cancelled the payment
+	 * @param  String $token    The token returned from PayPal
+	 * @return None
+	 */
+	function cancelPurchase($bookId, $username, $token) { 
+		createLogEntry("cancelPurchase", $username, "Payment cancelled with PayPal. Book: $bookId . Token: $token.");
+	}
 
+	/**
+	 * This is what is called when the user is redirected from PayPal directly. Tries to gather as much information about the purchase 
+	 * as possible before calling the cancelPurchase method that records the log entry in the audit log.
+	 * @param  String $token The token that is returned from PayPal.
+	 * @return MethodCall       Calls the cancelPurchase method.
+	 */
+	function cancelPurchaseRedirect($token) { 
+		$username ="";
+		$book = "";
+		if(checkSessionUser() == True) { 
+			$username = getSessionUsername();
+			$countSQL = "SELECT COUNT(*) FROM purchases WHERE ((username = :user) AND (executed = :executed))";
+			$sql = "SELECT * FROM purchases WHERE ((username = :user) AND (executed = :executed))";
+			$params = array(":user" => $username, ":executed" => 0);
+			try { 
+				$connection = connectToDatabase();
+			
+				//from the databases
+				$count = $connection->prepare($countSQL);
+				$count->execute($params);
+				$number = $count->fetch(PDO::FETCH_NUM);
+
+				if($number == 1) {
+					//from the databases
+					$query = $connection->prepare($sql);
+					$query->execute($params);
+					$result = $query->fetch(PDO::FETCH_ASSOC);
+					$book = $result['book'];
+				}
+				else {
+					$book = "PayPal Redirect - Unable to identify which book puchase has been cancelled.";
+				}
+			}
+			catch (PDOException $e) {
+				createLogEntry("cancelPurchaseRedirect", $username, "PDO Exception. Unable to retrieve payment info from the database. Payment cancelled with PayPal. Token: $token.");
+				exit;
+			}
+		}
+		else { 
+			$username = "PayPal Redirect - No user logged in.";
+			$book = "PayPal Redirect - Unable to identify which book puchase has been cancelled.";
+		}
+		cancelPurchase($book, $username, $token);
+	}
+
+	/**
+	 * Returns the purchases that were requested.
+	 * Admins are allowed to request purchases for anyone, users are only allowed to request the purchases for themselves.
+	 * All params are optional.
+	 * @param  String $user   The user that the purchases are being requested for.
+	 * @param  Integer $bookId The ID of the book that the purchase is being requested for.
+	 * @param  Integer $start  The start point of the purchases.
+	 * @param  Integer $length The end point of the purchases.
+	 * @return [type]         [description]
+	 */
+	function getPurchases($user, $bookId, $start, $length) {
+		//CHECK AUTHENTICATION
+		//check that the user is logged in
+		if (!isLoggedIn()) {
+			return array("success" => False, "message" => "Please log in in order to access this page.");
+		}
+
+		//check that the user that is logged in is an admin or user.
+		//If they are a user, ensure they can only get purchases about themself
+		if (checkSessionUser() == True) {
+			//If no username is given, assume they want the purchases for themself
+			if ($user == "") {
+				$user = getSessionUsername();
+			}
+			//otherwise notify them they are unable to request purchases for other users
+			else if(getSessionUsername() != $user) {
+				return array("success" => False, "message" => "Only administrators are allowed to request to view the purchases of other users.");
+			}
+		}
+		else if (checkSessionAdmin() == False) {
+			return array("success" => False, "message" => "Account type not recognised, please try logging in an out again.");
+		}
+
+		//SANITISE INPUT
+		//check that start is either equal to none or a number  
+		if ($start != "") {
+			if (!is_numeric($start)) { 
+				return array("success" => False, "message" => "Start and Length inputs have to be numeric.");
+			}
+		}
+		else { 
+			//If an offset is not specified then set it to zero
+			$start = 0;
+		}
+		//check that the length is either equal to none or a number
+		if($length != "") {
+			if (!is_numeric($length)) {
+				return False; 
+			}
+		}
+
+		//EXECUTE
+		//Build the parameters array with the correct parameters
+		$parameters = array(":username" => $user, ":bookId" => $bookId);
+		$sql = "SELECT * FROM purchases WHERE ((username LIKE concat('%', :username, '%')) AND (book LIKE concat('%', :bookId, '%')))";
+		$results;
+		try {
+			$connection = connectToDatabase();
+			$query = $connection->prepare($sql);
+			$query->execute($parameters);
+
+			//retrieve the array of the record
+			$results = $query->fetchAll(PDO::FETCH_ASSOC);
+			
+		}
+		catch (PDOException $exception) {
+			//catches the exception if unable to connect to the database
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
+		//The list of purchases that will be returned 
+		$purchases = array();
+		//A counter to know where in the list of purchases you are
+		$counter = 0;
+		if($length != "") {
+			$end = $start + $length;
+		}
+		//Loop through each of the books (results) that have been retrieved from the db
+		foreach ($results as $result) {
+			//change the key names/orders
+			$purchase = array();
+			$purchase['book_id'] = $result['book'];
+			$purchase['user'] = $result['username'];
+			 
+			//if length is not set then providing the counter is more than the offset add the book to the list of books
+			if($length == "") {
+				if ($counter >= $start) {
+					array_push($purchases, $purchase);
+				}
+				$counter++;
+			}
+			//if the length is set
+			else if (($counter >= $start) && ($counter < $end)) {
+				array_push($purchases, $purchase);
+				$counter++;
+			}
+			else {
+				$counter++;
+			}
+		}
+
+		return $purchases;
 	}
 
 ?>

@@ -10,8 +10,9 @@
 		//list of the required input fields in the form
 		$requiredInput = array('book_id', 'user');
 		foreach($requiredInput as $input) {
-	  		if (empty($_POST[$input])) {
+	  		if (empty($_GET[$input])) {
 	    		echo json_encode(array("success" => False, "message" => "The request sent contained empty fields."));
+	    		exit;
 	  		}
 		}
 

@@ -11,9 +11,6 @@
 				$response = activatePurchase($purchaseInformation['book'], $purchaseInformation['username'], $_GET['token'], $_GET['PayerID']);
 				echo json_encode($response);	
 			}
-			elseif($_GET['success'] == "false") {
-				echo json_encode(array("success" => False, "message" => "Payment Cancelled"));
-			}
 		}
 		else {
 			//manual input through a form

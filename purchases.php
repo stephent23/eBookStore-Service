@@ -1,21 +1,21 @@
 <?php
 
-	require_once 'apiBooks.php';
+	require_once 'apiPurchases.php';
 
 	//only accepts GET requests. No other HTTP request method.
 	if($_SERVER['REQUEST_METHOD'] == "GET") {
 		//initialise variables
-		$title = "";
-		$authors = "";
+		$user = "";
+		$bookId = "";
 		$start = "";
 		$length = "";
 
 		//assign form input to a variable 
-		if (isset($_GET['title'])) {
-			$title = $_GET['title'];
+		if (isset($_GET['user'])) {
+			$user = $_GET['user'];
 		}
-		if(isset($_GET['authors'])) {
-			$authors = $_GET['authors'];
+		if(isset($_GET['book_id'])) {
+			$bookId = $_GET['book_id'];
 		}
 		if (isset($_GET['start'])) {
 			$start = $_GET['start'];
@@ -24,8 +24,8 @@
 			$length = $_GET['length'];
 		}
 
-		//run the getBooks method which is in apiBooks
-		$response = getBooks($title, $authors, $start, $length);
+		//run the getPurchases method which is in apiPurchases
+		$response = getPurchases($user, $bookId, $start, $length);
 		echo json_encode($response);
 	}
 	else { 

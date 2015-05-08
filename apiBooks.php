@@ -58,7 +58,7 @@
 
 		//EXECUTE
 		//setting the target directories for the image and the content
-		$target_dir_image = "../../../assessment2_data/sjt43/public_html/uploads/images";
+		$target_dir_image = "../../../assessment2_data/sjt43/public_html/uploads/images/";
 		$target_file_image = $target_dir_image . basename($image['name']);
 		$target_dir_content = "../../../assessment2_data/sjt43/public_html/uploads/content/";
 		$target_file_content = $target_dir_content . basename($content['name']);
@@ -211,6 +211,9 @@
 			//if the length is set
 			else if (($counter >= $start) &&  ($counter < $length)) {
 				array_push($books, $book);
+				$counter++;
+			}
+			else {
 				$counter++;
 			}
 		}

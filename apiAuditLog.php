@@ -1,6 +1,8 @@
 <?php
 
 	require_once 'databaseConnection.php';
+	require_once 'common.php';
+	require_once 'config.php';
 
 	/**
 	 * Method runs when there are already logs in the audit table. 
@@ -118,6 +120,91 @@
     	catch (PDOException $e) {
     		return $e;
     	}
+	}
+
+	function getLogs($start, $length) { 
+		//CHECK USER AUTHENTICATION
+		//check that the user is logged in
+		if (!isLoggedIn()) {
+			return array("success" => False, "message" => "Please log in in order to access this page.");
+		}
+
+		//check that the user that is logged in, is an admin
+		if (checkSessionAdmin() != True) {
+			return array("success" => False, "message" => "Only admin users are able to create books.");
+		}
+
+		//SANITISE INPUT
+		//check that start is either equal to none or a number  
+		if ($start != "") {
+			if (!is_numeric($start)) { 
+				return array("success" => False, "message" => "Start and Length inputs have to be numeric.");
+			}
+		}
+		else { 
+			//If an offset is not specified then set it to zero
+			$start = 0;
+		}
+		//check that the length is either equal to none or a number
+		if($length != "") {
+			if (!is_numeric($length)) {
+				return False; 
+			}
+		}
+
+		//SQL to select the audit log
+		$sql = "SELECT * FROM auditLog";
+
+		$result;
+
+		try { 
+    		$connection = connectToDatabase();
+
+			//insert the log
+			$query = $connection->prepare($sql);
+			$query->execute();
+			$results = $query->fetchAll(PDO::FETCH_ASSOC);
+		}
+		catch (PDOException $e) {
+			return array("success" => False, "message" => "Something went wrong, please try again.");
+		}
+
+		//The list of purchases that will be returned 
+		$logs = array();
+		//A counter to know where in the list of purchases you are
+		$counter = 0;
+		if($length != "") {
+			$end = $start + $length;
+		}
+
+		//Loop through each of the books (results) that have been retrieved from the db
+		foreach ($results as $result) {
+			//change the key names/orders
+			$log = array();
+			$log['index'] = $result['id'];
+			$log['timestamp'] = $result['datetime'];
+			$plaintext = $result['outcome'] ." From method: " .$result['method_called']. " By User: " .$result['logged_in_user'];
+			$log['cleartext_message'] = $plaintext;
+			$log['hash'] = $result['hash'];
+			$log['signature'] = $result['signature'];
+			 
+			//if length is not set then providing the counter is more than the offset add the book to the list of books
+			if($length == "") {
+				if ($counter >= $start) {
+					array_push($logs, $log);
+				}
+				$counter++;
+			}
+			//if the length is set
+			else if (($counter >= $start) && ($counter < $end)) {
+				array_push($logs, $log);
+				$counter++;
+			}
+			else {
+				$counter++;
+			}
+		}
+		return $logs;
 	}
 
 ?>
