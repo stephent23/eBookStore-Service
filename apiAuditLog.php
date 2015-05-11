@@ -48,15 +48,15 @@
 			return $e;
 		}
 
-    	$entry = "$datetime,$method,$username,$outcome";
+		$content = json_encode(array("Username" => $username, "Method Called" => $method, "Outcome" => $outcome));
+    	$entry = $datetime . $content;
     	$entryHash = sha1($lastHash.$entry);
 
     	$log = "INSERT INTO auditLog 
-    		(datetime, method_called, logged_in_user, outcome, hash, signature) 
-    		VALUES (:datetime, :method_called, :username, :outcome, :hash, AES_ENCRYPT(:hash, :currentKey))";
+    		(datetime, outcome, hash, signature) 
+    		VALUES (:datetime, :outcome, :hash, AES_ENCRYPT(:hash, :currentKey))";
 
-    	$parameters = array(":datetime" => $datetime, ":method_called" => $method, ":username" => $username, 
-    		":outcome" => $outcome, ":hash" => $entryHash, ":currentKey" => $currentKey);
+    	$parameters = array(":datetime" => $datetime, ":outcome" => $content, ":hash" => $entryHash, ":currentKey" => $currentKey);
 
     	//create the new key and add it to database
     	$newKey = sha1($currentKey);
@@ -89,21 +89,20 @@
 	 * @return Exception        Would only ever return the exception should there be a problem writing to the database.
 	 */
 	function startLog($datetime, $method, $username, $outcome) {
-		$entry = "$datetime,$method,$username,$outcome";
+		$content = json_encode(array("Username" => $username, "Method Called" => $method, "Outcome" => $outcome));
+    	$entry = $datetime . $content;
     	$entryHash = sha1($entry);
 
-    	//insert into audit log
     	$log = "INSERT INTO auditLog 
-    		(datetime, method_called, logged_in_user, outcome, hash, signature) 
-    		VALUES (:datetime, :method_called, :username, :outcome, :hash, AES_ENCRYPT(:hash, :currentKey))";
+    		(datetime, outcome, hash, signature) 
+    		VALUES (:datetime, :outcome, :hash, AES_ENCRYPT(:hash, :currentKey))";
 
-    	$parameters = array(":datetime" => $datetime, ":method_called" => $method, ":username" => $username, 
-    		":outcome" => $outcome, ":hash" => $entryHash, ":currentKey" => constant("AUDIT_LOG_START_KEY"));
+    	$parameters = array(":datetime" => $datetime, ":outcome" => $content, ":hash" => $entryHash, ":currentKey" => constant("AUDIT_LOG_START_KEY"));
 
     	//create the next key and add it to database
     	$newKey = sha1(constant("AUDIT_LOG_START_KEY"));
     	$keyQuery = "INSERT INTO auditKey VALUES (:key)";
-    	$keyParam = array(":key" => $newKey);
+    	$keyParam = array(":key" => $newKey); 
     	
 
     	try { 
@@ -183,8 +182,8 @@
 			$log = array();
 			$log['index'] = $result['id'];
 			$log['timestamp'] = $result['datetime'];
-			$plaintext = $result['outcome'] ." From method: " .$result['method_called']. " By User: " .$result['logged_in_user'];
-			$log['cleartext_message'] = $plaintext;
+			$outcome = json_decode($result['outcome']);
+			$log['cleartext_message'] = $outcome;
 			$log['hash'] = $result['hash'];
 			$log['signature'] = $result['signature'];
 			 

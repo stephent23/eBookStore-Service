@@ -440,8 +440,8 @@
 
 		//EXECUTE
 		//Build the parameters array with the correct parameters
-		$parameters = array(":username" => $user, ":bookId" => $bookId);
-		$sql = "SELECT * FROM purchases WHERE ((username LIKE concat('%', :username, '%')) AND (book LIKE concat('%', :bookId, '%')))";
+		$parameters = array(":username" => $user, ":bookId" => $bookId, ":executed" => 1);
+		$sql = "SELECT * FROM purchases WHERE ((username LIKE concat('%', :username, '%')) AND (book LIKE concat('%', :bookId, '%')) AND (executed = :executed))";
 		$results;
 		try {
 			$connection = connectToDatabase();
