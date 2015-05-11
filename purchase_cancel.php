@@ -7,7 +7,7 @@
 
 		if(isset($_GET['success'])) {
 			if($_GET['success'] == "false") {
-				cancelPurchaseRedirect($_GET('token'));
+				cancelPurchase($_GET['token'], $_GET['username'], $_GET['book_id']);
 			}
 		}
 		else {
@@ -28,7 +28,7 @@
 			$token = $_GET['token'];
 
 			//run the createPurchase method which is in apiPurchases
-			cancelPurchase($bookId, $username, $token);
+			cancelPurchase($token, $username, $bookId);
 		}
 	}
 	else { 

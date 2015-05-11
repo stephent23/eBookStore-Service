@@ -139,8 +139,9 @@
 
 		$redirectUrls = new RedirectUrls();
 		$baseUrl = constant("SERVICE_URL");
+		$bookId = $bookInformation['book_id'];
 		$redirectUrls->setReturnUrl("$baseUrl/purchase_activate.php?success=true")
-			->setCancelUrl("$baseUrl/purchase_cancel.php?success=false");
+			->setCancelUrl("$baseUrl/purchase_cancel.php?success=false&book_id=$bookId&username=$username");
 
 		// ### Payment
 		// A Payment Resource; create one using
@@ -332,59 +333,28 @@
 	}
 
 	/**
-	 * Makes a call to the audit log passing accross the appropriate parameters.
-	 * @param  Integer $bookId   The ID of the book
-	 * @param  String $username The username of the user that cancelled the payment
-	 * @param  String $token    The token returned from PayPal
+	 * This cancels the purchase and updates the purchase table.
+	 * @param  String $token The token that is returned from PayPal.
 	 * @return None
 	 */
-	function cancelPurchase($bookId, $username, $token) { 
-		createLogEntry("cancelPurchase", $username, "Payment cancelled with PayPal. Book: $bookId . Token: $token.");
-	}
-
-	/**
-	 * This is what is called when the user is redirected from PayPal directly. Tries to gather as much information about the purchase 
-	 * as possible before calling the cancelPurchase method that records the log entry in the audit log.
-	 * @param  String $token The token that is returned from PayPal.
-	 * @return MethodCall       Calls the cancelPurchase method.
-	 */
-	function cancelPurchaseRedirect($token) { 
-		$username ="";
-		$book = "";
+	function cancelPurchase($token, $username, $book) { 
 		if(checkSessionUser() == True) { 
-			$username = getSessionUsername();
-			$countSQL = "SELECT COUNT(*) FROM purchases WHERE ((username = :user) AND (executed = :executed))";
-			$sql = "SELECT * FROM purchases WHERE ((username = :user) AND (executed = :executed))";
-			$params = array(":user" => $username, ":executed" => 0);
+			$sql = "UPDATE purchases SET cancelled = 1 WHERE ((username = :user) AND (book = :book_id) AND (executed = :executed))";
+			$params = array(":user" => $username, ":book_id" => $book, ":executed" => 0);
 			try { 
 				$connection = connectToDatabase();
 			
 				//from the databases
-				$count = $connection->prepare($countSQL);
-				$count->execute($params);
-				$number = $count->fetch(PDO::FETCH_NUM);
-
-				if($number == 1) {
-					//from the databases
-					$query = $connection->prepare($sql);
-					$query->execute($params);
-					$result = $query->fetch(PDO::FETCH_ASSOC);
-					$book = $result['book'];
-				}
-				else {
-					$book = "PayPal Redirect - Unable to identify which book puchase has been cancelled.";
-				}
+				$query = $connection->prepare($sql);
+				$query->execute($params);
 			}
 			catch (PDOException $e) {
-				createLogEntry("cancelPurchaseRedirect", $username, "PDO Exception. Unable to retrieve payment info from the database. Payment cancelled with PayPal. Token: $token.");
+				echo $e;
+				createLogEntry("cancelPurchase", $username, "PDO Exception. Unable to update payment infomation in the database. Payment cancelled with PayPal. Token: $token.");
 				exit;
 			}
+			createLogEntry("cancelPurchase", $username, "Payment cancelled successfully. Book: $book . Token: $token.");
 		}
-		else { 
-			$username = "PayPal Redirect - No user logged in.";
-			$book = "PayPal Redirect - Unable to identify which book puchase has been cancelled.";
-		}
-		cancelPurchase($book, $username, $token);
 	}
 
 	/**
